@@ -1,0 +1,157 @@
+import json
+import boto3
+#import urllib3
+import datetime
+dynamodb = boto3.resource('dynamodb')
+table_black = dynamodb.Table('Blacklist')
+table_white = dynamodb.Table('Whitelist')
+
+
+print('Loading function')
+
+def lambda_handler(event, context):
+    
+        white_ip = None
+        black_ip = None
+        flag = True
+        ttl = 8
+        unmatched_counter = 0
+        timestamp = 0
+        LifeTime = 60*60
+        Time = 15*60*60*24
+        days = 14*60*60*24
+        Threshold = 5
+        bl_missed = 0
+        
+        transactionIp = event['requestContext']['identity']['sourceIp']
+        wt = table_white.get_item( Key={'IP': transactionIp})
+        bl = table_black.get_item( Key={'IP': transactionIp })
+        
+        try:
+            black_ip = bl["Item"]["IP"]
+        except Exception as e:
+            print(e,' black IP N/A ('')')
+        try:
+            #black_ip = bl["Item"]["IP"]
+            white_ip = wt["Item"]["IP"]
+        except Exception as e:
+            print(e,'WHITE IP N/A ('')')
+        
+        #now = Date().getTime().toString()
+    
+       # //////////////////////////*******Virtual Firewal********////////////////////////////////
+       # ////////////Algorithem 1 
+
+        try:
+            W_ttl = wt["Item"]["ttl"]
+            print(W_ttl,'fff',white_ip)
+        except Exception as e:
+            print(e,'white_ip exception')
+            
+        if white_ip != None and W_ttl == 8 :
+            print('hello from gora')
+            transactionResponse={}
+            transactionResponse['transactionIp'] = transactionIp
+            transactionResponse['message'] = 'White-Listed! '
+            flag = False
+        
+      
+            
+       # //////////////////////////********V-Node*********///////////////////
+ 
+       #//////////////////////////    Algorithem 2        ///////////////////////////////////////
+
+        if flag:
+            if black_ip == None:
+                # TODO: write code...
+            
+                transactionName = event['queryStringParameters']['Name']
+                
+                if transactionName == 'Zeeshan':
+                    # TODO: write code...
+                    if white_ip == None:
+                        # TODO: write code...white_ip != None
+                        transactionResponse={}
+                        transactionResponse['transactionIp'] = transactionIp
+                        transactionResponse['message'] = 'String is correct, IP Whitelisted'
+                        table_white.put_item(Item = {"IP" : transactionIp ,  'ttl' : 8 })
+                        unmatched_counter = 0
+                    else:
+                        # TODO: write code...
+                        transactionResponse={}
+                        transactionResponse['transactionIp'] = transactionIp
+                        transactionResponse['message'] = 'TTL Updated'
+                        table_white.put_item(Item = {"IP" : transactionIp ,  'ttl' : 8 })
+                        
+                    
+                else:
+                    #print(datetime.datetime.now())
+                    transactionResponse={}
+                    transactionResponse['transactionIp'] = transactionIp
+                    transactionResponse['message'] = 'Attcker! IP is blacklisted '
+                    table_black.put_item(Item = {"IP" : transactionIp , 'ttl' : ttl , 'timestamp' : days })
+                    #timestamp = time.time()
+                    unmatched_counter = 0
+            else:
+                # TODO: write code...
+                print("jaani hum e hain ")
+                db_time = bl["Item"]["timestamp"]
+                bl_TTL = bl["Item"]["ttl"]
+                During = Time - db_time > LifeTime ### In enahnced EDoS shield sign is "Less then"
+                ExceedThr = bl_missed > Threshold
+                MatchesTTL = bl_TTL == ttl
+                if During and (MatchesTTL or ExceedThr ):
+                    # TODO: write code...
+                    # Packet dropped
+                    drop = True
+                    transactionResponse={}
+                    transactionResponse['transactionIp'] = transactionIp
+                    transactionResponse['message'] = 'Attcker! IP Droped '
+                else:
+                    # TODO: write code...  
+                    if transactionName == 'Zeeshan':
+                        if white_ip == None:
+                            transactionResponse={}
+                            transactionResponse['transactionIp'] = transactionIp
+                            transactionResponse['message'] = 'String is correct now, IP Whitelisted'
+                            table_white.put_item(Item = {"IP" : transactionIp ,  'ttl' : 8 })
+                            unmatched_counter = 0
+                        else:
+                            # TODO: write code...
+                            transactionResponse={}
+                            transactionResponse['transactionIp'] = transactionIp
+                            transactionResponse['message'] = 'String is correct, Whitelisted updated'
+                            table_white.put_item(Item = {"IP" : transactionIp ,  'ttl' : 8 })
+                            unmatched_counter = 0
+                        if not During:
+                            # TODO: write code...  
+                            table_black.delete_item(Key = {"IP" : transactionIp})
+                        transactionResponse={}
+                        transactionResponse['transactionIp'] = transactionIp
+                        transactionResponse['message'] = 'forwarded to Destination'
+                    else:
+                        # TODO: write code...
+                        drop = True
+                        transactionResponse={}
+                        transactionResponse['transactionIp'] = transactionIp
+                        transactionResponse['message'] = 'Attcker! IP Droped '
+                        
+                        if not During:
+                            # TODO: write code...
+                            table_white.put_item(Item = {"IP" : transactionIp ,  'ttl' : 8 , 'timestamp' : days  })
+                            unmatched_counter = 0
+                        else:
+                            # TODO: write code...
+                            unmatched_counter = 1
+                            if white_ip != None:
+                                # TODO: write code...
+                                unmatched_counter = 1
+   
+        
+        responseObject = {}
+        responseObject['statusCode'] = 200
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps(transactionResponse)
+            
+        return responseObject
