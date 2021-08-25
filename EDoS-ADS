@@ -1,0 +1,65 @@
+import json
+import boto3
+import socket
+#import urllib3
+import datetime
+dynamodb = boto3.resource('dynamodb')
+DB_table = dynamodb.Table('Behaviour')
+
+
+print('Loading function')
+
+def lambda_handler(event, context):
+    
+        #Trust factor values given in articales are replaced due to dynamodb float restriction 
+        # >> 0 with 1, 0.25 with 2, 0.5 with 3, 0.75 with 4 and 1 with 5 << 
+       
+        flag = False
+       
+        current_time = datetime.datetime.now()
+        TF_value = 3 
+        
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('0.0.0.0', 0))
+        port = sock.getsockname()[1]
+        transactionIp = event['requestContext']['identity']['sourceIp']
+        GTT = event['queryStringParameters']['GTT']
+        Client = transactionIp,port
+        
+        try:
+            TF = DB_table.get_item( Key={'Ip': transactionIp })
+            TF_value = TF["Item"]["Trust_factor"]
+        except Exception as e:
+            print(e)
+        
+        #///////////////////////Defence shell/ Graphic Turing Test GTT /////////
+        
+        if GTT == 'Legit':
+            if TF_value > 4:
+                TF_value = TF_value-1
+                
+            DB_table.put_item(Item = {"Ip" : transactionIp, "Port" : port , "client status" : 'Legitimate' ,
+            "CRPS" : '1', "Last seen" : current_time.isoformat() , "Trust_factor" : TF_value+1 })
+            
+            transactionResponse={}
+            transactionResponse['IP/Port'] = Client
+            transactionResponse['message'] = 'Legitimate ! '
+            
+        else:
+            if TF_value < 1:
+                TF_value = TF_value+1
+            DB_table.put_item(Item = {"Ip" : transactionIp, "Port" : port , "client status" : 'Malicious' ,
+            "CRPS" : '1', "Last seen" : current_time.isoformat() , "Trust_factor" : TF_value-1 })
+            transactionResponse={}
+            transactionResponse['IP/Port'] = Client
+            transactionResponse['message'] = 'Attcker !'
+  
+  
+        
+        responseObject = {}
+        responseObject['statusCode'] = 200
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps(transactionResponse)
+            
+        return responseObject
