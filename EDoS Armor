@@ -1,0 +1,56 @@
+import json
+import boto3
+import urllib3
+# from botocore.vendored import requests
+region = 'us-east-1'
+
+print('Loading function')
+
+def lambda_handler(event, context):
+
+        flag = True
+        transactionIp = event['requestContext']['identity']['sourceIp']
+        print(transactionIp)
+              
+       # //////////////////////////********Challenge Server*********///////////////////
+ 
+                
+        if flag:
+            
+            transactionName = event['queryStringParameters']['Name']
+            Priority = event['queryStringParameters']['priority']
+            
+            if transactionName == 'Zeeshan':
+                # TODO: write code...
+                transactionResponse={}
+                transactionResponse['transactionIp'] = transactionIp
+                transactionResponse['message'] = 'String is correct New user'
+                
+                print('String matched')
+                if Priority == 'Gd1':
+                    # TODO: write code...
+                    transactionResponse['message'] = 'high priority user'
+                elif Priority == 'Gd2':
+                    # TODO: write code...
+                    transactionResponse['message'] = 'Second high priority user'
+                elif Priority == 'Bd0':
+                    # TODO: write code...
+                    transactionResponse['message'] = 'Least priority user'
+                
+            else:
+                transactionResponse={}
+                transactionResponse['transactionIp'] = transactionIp
+                transactionResponse['message'] = 'Attcker!'
+        
+                #http = urllib3.PoolManager()
+                #r = http.request('GET', 'https://www.google.com/')
+                #return r
+           
+            
+        responseObject = {}
+        responseObject['statusCode'] = 200
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps(transactionResponse)
+            
+        return responseObject
