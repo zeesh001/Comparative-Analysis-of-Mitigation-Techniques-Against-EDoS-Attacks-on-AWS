@@ -1,0 +1,87 @@
+import json
+import boto3
+import urllib3
+from botocore.vendored import requests
+region = 'us-east-1'
+dynamodb = boto3.resource('dynamodb')
+#ec2 = boto3.client('ec2', region_name=region)
+#instances = ['i-027a1fc3c8cd84b57']
+table_black = dynamodb.Table('Blocklist')
+table_white = dynamodb.Table('Whitelist')
+
+
+print('Loading function')
+
+def lambda_handler(event, context):
+        #ec2.start_instances(InstanceIds=instances)
+        #print('started your instances: ' + str(instances))
+        #1. Parse out query string params
+        
+        white_ip = None
+        black_ip = None
+        flag = True
+       # //////////////////////////*******Virtual Firewal********////////////////////////////////////
+ 
+        transactionIp = event['requestContext']['identity']['sourceIp']
+        
+        try:
+            res = table_black.get_item( Key={'IP': transactionIp})
+            black_ip = res["Item"]["IP"]
+        except Exception as e:
+            print(e,'black_ip exception')
+       
+        if black_ip != None:
+            
+            transactionResponse={}
+            transactionResponse['transactionIp'] = transactionIp
+            transactionResponse['message'] = 'Black Listed! '
+            flag = False
+        
+        if flag:
+            try:
+                res = table_white.get_item( Key={'IP':transactionIp})
+                white_ip = res["Item"]["IP"]
+            except Exception as e:
+                print(e,'white_ip exception')
+                
+            if white_ip != None:
+                print('3rd step')
+                transactionResponse={}
+                transactionResponse['transactionIp'] = transactionIp
+                transactionResponse['message'] = 'whitelisted'
+                flag = False
+                             
+       # //////////////////////////********V-Node*********///////////////////
+                
+        if flag:
+            
+            transactionName = event['queryStringParameters']['Name']
+            
+            if transactionName == 'Zeeshan':
+                # TODO: write code...
+                print('4th step')
+                
+                transactionResponse={}
+                transactionResponse['transactionIp'] = transactionIp
+                transactionResponse['message'] = 'String is correct, IP Whitelisted'
+                table_white.put_item(Item = {"IP" : transactionIp })
+            else:
+                transactionResponse={}
+                transactionResponse['transactionIp'] = transactionIp
+                transactionResponse['message'] = 'Attcker! IP is blacklisted '
+                table_black.put_item(Item = {"IP" : transactionIp })
+                
+        
+                #http = urllib3.PoolManager()
+                #r = http.request('GET', 'https://www.google.com/')
+                #return r
+           
+            
+        responseObject = {}
+        responseObject['statusCode'] = 200
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps(transactionResponse)
+            
+        return responseObject
+            
